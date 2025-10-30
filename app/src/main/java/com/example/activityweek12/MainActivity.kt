@@ -7,14 +7,24 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.google.firebase.firestore.FirebaseFirestore
 import com.example.activityweek12.ui.theme.ActivityWeek12Theme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -32,10 +42,12 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun NameGradeForm() {
     val context = LocalContext.current
-    val db = FirebaseFirestore.getInstance()
+    val client = remember { OkHttpClient() }
+    val scope = rememberCoroutineScope()
+    val baseUrl = remember { "http://10.0.2.2:3000" } // Para emulador Android accediendo al host
 
-    var name by remember { mutableStateOf(TextFieldValue("")) }
-    var grade by remember { mutableStateOf(TextFieldValue("")) }
+    var nombre by remember { mutableStateOf(TextFieldValue("")) }
+    var email by remember { mutableStateOf(TextFieldValue("")) }
     var isLoading by remember { mutableStateOf(false) }
 
     Column(
@@ -45,54 +57,66 @@ fun NameGradeForm() {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Registro de Estudiantes", style = MaterialTheme.typography.titleLarge)
+        Text("Registro", style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Campo Name
+        // Campo Nombre
         OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Name") },
+            value = nombre,
+            onValueChange = { nombre = it },
+            label = { Text("Nombre") },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Campo Grade
+        // Campo Email
         OutlinedTextField(
-            value = grade,
-            onValueChange = { grade = it },
-            label = { Text("Grade") },
-            modifier = Modifier.fillMaxWidth()
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
         )
         Spacer(modifier = Modifier.height(24.dp))
 
         // Botón Submit
         Button(
             onClick = {
-                if (name.text.isBlank() || grade.text.isBlank()) {
+                if (nombre.text.isBlank() || email.text.isBlank()) {
                     Toast.makeText(context, "Por favor, complete todos los campos", Toast.LENGTH_SHORT).show()
                     return@Button
                 }
 
                 isLoading = true
-
-                val student = hashMapOf(
-                    "name" to name.text,
-                    "grade" to grade.text
-                )
-
-                db.collection("students")
-                    .add(student)
-                    .addOnSuccessListener {
-                        Toast.makeText(context, "Datos enviados a Firebase", Toast.LENGTH_SHORT).show()
-                        name = TextFieldValue("")
-                        grade = TextFieldValue("")
-                        isLoading = false
+                scope.launch {
+                    val json = "{" +
+                            "\"nombre\":\"${nombre.text}\"," +
+                            "\"email\":\"${email.text}\"" +
+                            "}"
+                    val mediaType = "application/json; charset=utf-8".toMediaType()
+                    val body: RequestBody = json.toRequestBody(mediaType)
+                    val request = Request.Builder()
+                        .url("$baseUrl/api/records")
+                        .post(body)
+                        .build()
+                    val result = withContext(Dispatchers.IO) {
+                        runCatching { client.newCall(request).execute() }
                     }
-                    .addOnFailureListener { e ->
+                    result.onSuccess { response ->
+                        if (response.isSuccessful) {
+                            Toast.makeText(context, "Registro enviado a la API", Toast.LENGTH_SHORT).show()
+                            nombre = TextFieldValue("")
+                            email = TextFieldValue("")
+                        } else {
+                            Toast.makeText(context, "Error ${response.code}", Toast.LENGTH_SHORT).show()
+                        }
+                        response.close()
+                        isLoading = false
+                    }.onFailure { e ->
                         Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                         isLoading = false
                     }
+                }
             },
             modifier = Modifier.fillMaxWidth(),
             enabled = !isLoading
