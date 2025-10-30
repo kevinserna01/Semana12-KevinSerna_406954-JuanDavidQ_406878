@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "666618407417",
+    "project_id": "semana12-419d2",
+    "storage_bucket": "semana12-419d2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:666618407417:android:1b066724d09a58e571b528",
+        "android_client_info": {
+          "package_name": "com.example.activityweek12"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDcp0NiEcL4ZOGRoCP7zUwvhfUwprBoUCQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
